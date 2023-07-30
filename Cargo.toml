@@ -1,5 +1,5 @@
 [package]
-name = "ticker-tape-rs-gen"
+name = "ticker-tape-rs"
 version = "0.1.0"
 authors = ["arosspope <andrew.pope456@gmail.com>"]
 edition = "2021"
