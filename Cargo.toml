@@ -36,6 +36,7 @@ embedded-svc = { version = "0.25", optional = true, default-features = false }
 toml-cfg = "0.1.3"
 anyhow = "1.0.72"
 rgb = "0.8.36"
+max7219 = "0.4.0"
 
 [patch.crates-io]
 esp-idf-svc = { git="https://github.com/esp-rs/esp-idf-svc"}

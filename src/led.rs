@@ -1,7 +1,7 @@
 use anyhow::Result; // TODO: why use anyhow?
 use core::time::Duration;
 use esp_idf_hal::{
-    gpio::{OutputPin},
+    gpio::OutputPin,
     rmt::{config::TransmitConfig, FixedLengthSignal, PinState, Pulse, TxRmtDriver, RmtChannel}, peripheral::Peripheral,
 };
 
