@@ -33,13 +33,26 @@ impl Wifi {
         
         for _ in 0..10 {
             if wifi_driver.is_connected().unwrap() {
-                // Ok(());
                 break;
             }
 
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
 
-        // Ok(()) // TODO: 
+        if !wifi_driver.is_connected().unwrap() {
+            return; // TODO: Error
+        }
+
+        for _ in 0..10 {
+            if wifi_driver.sta_netif().is_up().unwrap() {
+                // Ok(())
+                break;
+            }
+
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+        
+
+        // Ok(()) // TODO: Err
     }
 }
