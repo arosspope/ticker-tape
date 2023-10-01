@@ -50,18 +50,26 @@ fn main() -> Result<()> {
     let display = MAX7219::from_pins(1, data, cs, sck).unwrap();
     let mut dp = DotDisplay::from(display);
 
+    let mut seed = 0;
+
+    dp.turn_on_display()?;
     loop {
-        dp.turn_on_display()?;
-        dp.write_display(&[1,2,3,4,5,6,7,8])?;
+        let mut input: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
 
-        // Blue!
-        led.set_pixel(RGB8::new(0, 0, 50))?;
-        // Wait...
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        for i in 0..input.len() as usize {
+            let val = (seed + i) % u8::MAX as usize;
+            input[i] = val as u8;
+        }
 
-        // Green!
-        led.set_pixel(RGB8::new(0, 50, 0))?;
-        // Wait...
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        dp.write_display(&input)?;
+        seed += 1;
+
+        if (seed % 2) == 0 {
+            led.set_pixel(RGB8::new(0, 0, 50))?; // Blue
+        } else {
+            led.set_pixel(RGB8::new(0, 50, 0))?; // Green
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }

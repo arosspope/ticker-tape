@@ -49,7 +49,7 @@ impl DotDisplay<'_> {
         };
 
         // Start the DotDisplay in a known state
-        controller.reset_display();
+        controller.reset_display().unwrap();
         controller.turn_off_display().unwrap();
         controller
     }
