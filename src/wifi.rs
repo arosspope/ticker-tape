@@ -1,3 +1,4 @@
+use anyhow::{Result, Error, bail};
 use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration, Wifi as SvcWifi};
 use esp_idf_hal::modem::Modem;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition, wifi::EspWifi};
@@ -26,33 +27,31 @@ impl Wifi {
         wifi_driver
     }
 
-    pub fn start(wifi_driver: &mut EspWifi<'_>) {// TODO: Make it a result type -> Result<()>  {
-        wifi_driver.start().expect("Failed to start wifi driver");
-        wifi_driver.is_started().expect("Failed to start wifi driver");
-        wifi_driver.connect().expect("Failed to initiate connection");
+    pub fn start(wifi_driver: &mut EspWifi<'_>) -> Result<(), Error> {
+        wifi_driver.start()?;
+        wifi_driver.is_started()?;
+        wifi_driver.connect()?;
         
         for _ in 0..10 {
-            if wifi_driver.is_connected().unwrap() {
+            if wifi_driver.is_connected()? {
                 break;
             }
 
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
 
-        if !wifi_driver.is_connected().unwrap() {
-            return; // TODO: Error
+        if !wifi_driver.is_connected()? {
+            bail!("Failed to connect to BSS");
         }
 
         for _ in 0..10 {
-            if wifi_driver.sta_netif().is_up().unwrap() {
-                // Ok(())
-                break;
+            if wifi_driver.sta_netif().is_up()? {
+                return Ok(());
             }
 
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
         
-
-        // Ok(()) // TODO: Err
+        bail!("Failed to bring up network interface");
     }
 }
