@@ -50,7 +50,7 @@ fn main() -> Result<()> {
     let cs = PinDriver::output(peripherals.pins.gpio1).unwrap();
     let sck = PinDriver::output(peripherals.pins.gpio2).unwrap();
     let display = MAX7219::from_pins(1, data, cs, sck).unwrap();
-    let mut dp = DotDisplay::from(display);
+    let mut dp = DotDisplay::from(display).expect("Failed to initialise dot-matrix");
 
     let mut seed = 0;
 
@@ -63,7 +63,7 @@ fn main() -> Result<()> {
             input[i] = val as u8;
         }
 
-        dp.write_display(&input)?;
+        dp.write_display(&input).expect("Failed to write dot-matrix");
         seed += 1;
 
         if (seed % 2) == 0 {
