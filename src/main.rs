@@ -1,9 +1,14 @@
+use std::str;
 use anyhow::Result;
 use esp_idf_hal::{
     prelude::Peripherals,
     gpio::PinDriver
 };
+use esp_idf_svc::{
+    http::server::{Configuration, EspHttpServer},
+};
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
+use embedded_svc::{http::{Method, Headers}, io::{Write, Read}};
 use log::*;
 use max7219::*;
 
@@ -50,10 +55,39 @@ fn main() -> Result<()> {
     let sck = PinDriver::output(peripherals.pins.gpio2).unwrap();
     let display = MAX7219::from_pins(1, data, cs, sck).unwrap();
     let mut dp = DotDisplay::from(display).expect("Failed to initialise dot-matrix");
-
-    let mut seed = 0;
-
     dp.turn_on_display().expect("Failed to turn on display");
+
+
+    // Set the HTTP server
+    let mut server = EspHttpServer::new(&Configuration::default())?;
+    // http://<sta ip>/ handler
+    server.fn_handler("/", Method::Get, |request| {
+        let html = index_html();
+        let mut response = request.into_ok_response()?;
+        response.write_all(html.as_bytes())?;
+        Ok(())
+    })?;
+
+    // http://<sta ip>/temperature handler
+    server.fn_handler("/temperature", Method::Get, move |request| {
+        let html = temperature(32.0);
+        let mut response = request.into_ok_response()?;
+        response.write_all(html.as_bytes())?;
+        Ok(())
+    })?;
+
+    server.fn_handler("/example", Method::Put, |mut req| {
+        let len = req.content_len().unwrap_or(0) as usize;
+
+        let mut buf = vec![0; len];
+        req.read_exact(&mut buf)?;
+        let mut resp = req.into_ok_response()?;
+        resp.write_all(temperature(32.0).as_bytes())?;
+        info!("{:?}",  str::from_utf8(&buf)?);
+        Ok(())
+    })?;
+    
+    let mut seed = 0;
     loop {
         let mut input: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -73,4 +107,30 @@ fn main() -> Result<()> {
 
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
+}
+
+fn templated(content: impl AsRef<str>) -> String {
+    format!(
+        r#"
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>esp-rs web server</title>
+    </head>
+    <body>
+        {}
+    </body>
+</html>
+"#,
+        content.as_ref()
+    )
+}
+
+fn index_html() -> String {
+    templated("Hello from ESP32-C3!")
+}
+
+fn temperature(val: f32) -> String {
+    templated(format!("Chip temperature: {:.2}°C", val))
 }
