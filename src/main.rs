@@ -42,8 +42,7 @@ fn main() -> Result<()> {
     info!("Loading with credentials, ssid:{:?} psk:{:?}", app_config.wifi_ssid, app_config.wifi_psk);
     let mut wifi = Wifi::init(peripherals.modem, &app_config.wifi_ssid, &app_config.wifi_psk);
     Wifi::start(&mut wifi)?;
-    let ip = wifi.sta_netif().get_ip_info().unwrap();
-    info!("IP info: {:?}", ip);
+
 
     // Setup for the MAX7219 display
     let data = PinDriver::output(peripherals.pins.gpio0).unwrap();
