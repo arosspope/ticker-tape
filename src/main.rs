@@ -21,6 +21,8 @@ use dot_display::DotDisplay;
 mod wifi;
 use wifi::Wifi;
 
+use font8x8::{BASIC_FONTS, UnicodeFonts};
+
 #[toml_cfg::toml_config]
 pub struct Config {
     #[default("")]
@@ -87,16 +89,15 @@ fn main() -> Result<()> {
         Ok(())
     })?;
     
+    dp.set_brightness(80).expect("Failed to set brightness");
     let mut seed = 0;
-    loop {
-        let mut input: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+    loop {        
+        if let Some(mut glyph) = BASIC_FONTS.get(char::from_digit((seed % 10) as u32, 10).unwrap()) {
+            glyph.iter_mut().for_each(|x| *x = x.reverse_bits());
 
-        for i in 0..input.len() as usize {
-            let val = (seed + i) % u8::MAX as usize;
-            input[i] = val as u8;
+            dp.write_display(&glyph).expect("Failed to write dot-matrix");
         }
 
-        dp.write_display(&input).expect("Failed to write dot-matrix");
         seed += 1;
 
         if (seed % 2) == 0 {
