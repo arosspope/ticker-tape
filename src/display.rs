@@ -1,8 +1,11 @@
+use log::*;
+use anyhow::{Result, Error};
 use esp_idf_hal::gpio::{
     PinDriver,
     Gpio0, Gpio1, Gpio2,
     Output
 };
+use font8x8::{BASIC_FONTS, UnicodeFonts};
 use max7219::{connectors::*, *};
 
 pub type DisplayPins<'a> =
@@ -81,5 +84,48 @@ impl DotDisplay<'_> {
         let brightness = (brightness as f32 * 2.55) as u8;
         self.display.set_intensity(0, brightness)?;
         Ok(())
+    }
+}
+
+pub struct Ticker<'a> {
+    shift: usize,
+    index: usize,
+    len: usize,
+    message: [u8; 100],
+    pub display: DotDisplay<'a>,
+}
+
+impl Ticker<'_> {
+    pub fn new<'a>(display: DotDisplay<'a>) -> Ticker<'a> {
+        Ticker {
+            shift: 0,
+            index: 0,
+            len: 0,
+            message: [0; 100], 
+            display: display, 
+        }
+    }
+
+    pub fn set_message(&mut self, message: &str) {
+        debug!("Setting ticker-tape message: {:?}", message);
+        self.len = message.len();
+        self.message[..self.len].copy_from_slice(message.as_bytes().try_into().unwrap());
+    }
+
+    pub fn tick(&mut self) {
+        if self.shift >= 8 {
+            self.shift = 0;
+            self.index = (self.index + 1) % self.len;
+        }
+
+        let c = self.message[self.index] as char;
+        
+        if let Some(mut glyph) = BASIC_FONTS.get(c) {
+            glyph.iter_mut().for_each(|x| *x = x.reverse_bits() << self.shift);
+
+            self.display.write_display(&glyph).expect("Failed to write dot-matrix");
+        }
+
+        self.shift += 1;
     }
 }

@@ -4,19 +4,17 @@ use esp_idf_hal::{
     prelude::Peripherals,
     gpio::PinDriver
 };
-use esp_idf_svc::{
-    http::server::{Configuration, EspHttpServer},
-};
-use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use embedded_svc::{http::{Method, Headers}, io::{Write, Read}};
+use esp_idf_svc::http::server::{Configuration, EspHttpServer};
+use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use log::*;
 use max7219::*;
 
 mod led;
 use led::{RGB8, WS2812RMT};
 
-mod dot_display;
-use dot_display::DotDisplay;
+mod display;
+use display::{DotDisplay, Ticker};
 
 mod wifi;
 use wifi::Wifi;
@@ -55,10 +53,10 @@ fn main() -> Result<()> {
     let data = PinDriver::output(peripherals.pins.gpio0).unwrap();
     let cs = PinDriver::output(peripherals.pins.gpio1).unwrap();
     let sck = PinDriver::output(peripherals.pins.gpio2).unwrap();
-    let display = MAX7219::from_pins(1, data, cs, sck).unwrap();
-    let mut dp = DotDisplay::from(display).expect("Failed to initialise dot-matrix");
-    dp.turn_on_display().expect("Failed to turn on display");
-
+    let mut ticker = Ticker::new(
+        DotDisplay::from(MAX7219::from_pins(1, data, cs, sck).unwrap()).unwrap(),
+    );
+    ticker.set_message("Hello world");
 
     // Set the HTTP server
     let mut server = EspHttpServer::new(&Configuration::default())?;
@@ -89,14 +87,10 @@ fn main() -> Result<()> {
         Ok(())
     })?;
     
-    dp.set_brightness(80).expect("Failed to set brightness");
+    ticker.display.set_brightness(80).expect("Failed to set brightness");
     let mut seed = 0;
     loop {        
-        if let Some(mut glyph) = BASIC_FONTS.get(char::from_digit((seed % 10) as u32, 10).unwrap()) {
-            glyph.iter_mut().for_each(|x| *x = x.reverse_bits());
-
-            dp.write_display(&glyph).expect("Failed to write dot-matrix");
-        }
+        ticker.tick();
 
         seed += 1;
 
@@ -106,7 +100,7 @@ fn main() -> Result<()> {
             led.set_pixel(RGB8::new(0, 50, 0))?; // Green
         }
 
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 }
 
