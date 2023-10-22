@@ -100,7 +100,7 @@ fn main() -> Result<()> {
             led.set_pixel(RGB8::new(0, 50, 0))?; // Green
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(70));
     }
 }
 

@@ -88,7 +88,7 @@ impl DotDisplay<'_> {
 }
 
 pub struct Ticker<'a> {
-    shift: usize,
+    shift: isize,
     index: usize,
     len: usize,
     message: [u8; 100],
@@ -112,20 +112,44 @@ impl Ticker<'_> {
         self.message[..self.len].copy_from_slice(message.as_bytes().try_into().unwrap());
     }
 
+    // TODO: Make array length variable with 'N' parameter
+    fn prepare_glyph(glyph: &mut [u8; 8], shift: isize) {
+        glyph.iter_mut().for_each(|x| {
+                *x = x.reverse_bits();
+                let mut y = *x as isize;
+
+                if shift < 0 {
+                    y >>= shift.abs();
+                } else {
+                    y <<= shift;
+                }
+                
+                *x = y as u8;
+            }
+        )
+    }
+
     pub fn tick(&mut self) {
+        let unknown = BASIC_FONTS.get('?').unwrap();
         if self.shift >= 8 {
             self.shift = 0;
             self.index = (self.index + 1) % self.len;
         }
 
-        let c = self.message[self.index] as char;
+        let previous = if self.index > 0 {self.message[self.index - 1] as char} else {0 as char};
+        let next = self.message[self.index] as char;
         
-        if let Some(mut glyph) = BASIC_FONTS.get(c) {
-            glyph.iter_mut().for_each(|x| *x = x.reverse_bits() << self.shift);
+        let mut previous_glyph = BASIC_FONTS.get(previous).unwrap_or(unknown);
+        let mut next_glyph = BASIC_FONTS.get(next).unwrap_or(unknown);
+        
+        Ticker::prepare_glyph(&mut previous_glyph, self.shift);
+        Ticker::prepare_glyph(&mut next_glyph, self.shift - 8);
+        
+        // OR two glyphs together
+        previous_glyph.iter_mut().enumerate().for_each(|(index, el)| *el |= next_glyph[index]);
 
-            self.display.write_display(&glyph).expect("Failed to write dot-matrix");
-        }
-
+        // Write to the display
+        self.display.write_display(&previous_glyph).expect("Failed to write dot-matrix");
         self.shift += 1;
     }
 }
