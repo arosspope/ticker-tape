@@ -58,6 +58,12 @@ fn main() -> Result<()> {
     );
     ticker.set_message("Hello world");
 
+    // TODO:
+    //  -> GET message
+    //  -> PUT message
+    //  -> GET speed
+    //  -> PUT speed
+
     // Set the HTTP server
     let mut server = EspHttpServer::new(&Configuration::default())?;
     // http://<sta ip>/ handler
