@@ -1,5 +1,4 @@
-use std::str;
-use anyhow::Result;
+use std::{str, sync::{Arc, Mutex}};
 use esp_idf_hal::{
     prelude::Peripherals,
     gpio::PinDriver
@@ -29,7 +28,7 @@ pub struct Config {
 }
 
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     // It is necessary to call this function once. Otherwise some patches to the runtime
     // implemented by esp-idf-sys might not link properly. See https://github.com/esp-rs/esp-idf-template/issues/71
     esp_idf_sys::link_patches();
@@ -52,16 +51,12 @@ fn main() -> Result<()> {
     let data = PinDriver::output(peripherals.pins.gpio0).unwrap();
     let cs = PinDriver::output(peripherals.pins.gpio1).unwrap();
     let sck = PinDriver::output(peripherals.pins.gpio2).unwrap();
-    let mut ticker = Ticker::new(
+    let ticker_main = Arc::new(Mutex::new(Ticker::new(
         DotDisplay::from(MAX7219::from_pins(1, data, cs, sck).unwrap()).unwrap(),
-    );
-    ticker.set_message("Hello world");
-
-    // TODO:
-    //  -> GET message
-    //  -> PUT message
-    //  -> GET speed
-    //  -> PUT speed
+    )));
+    let ticker = ticker_main.clone();
+    ticker.lock().unwrap().set_message("Hello world")?;
+    ticker.lock().unwrap().display.set_brightness(80).expect("Failed to set brightness");
 
     // Set the HTTP server
     let mut server = EspHttpServer::new(&Configuration::default())?;
@@ -70,11 +65,12 @@ fn main() -> Result<()> {
     server.fn_handler("/", Method::Get, |request| {
         #[derive(Serialize)]
         struct TickerConfig {
-            speed: u16
+            message: String,
+            speed: u16,
+            brightness: u8
         }
 
-        let config = TickerConfig{speed: 0};
-
+        let config = TickerConfig{speed: 0, message: String::default(), brightness: 0};
         let mut response = request.into_ok_response()?;
         response.write_all(serde_json::to_string(&config)?.as_bytes())?;
         Ok(())
@@ -90,6 +86,7 @@ fn main() -> Result<()> {
             if let Ok(speed) = as_str.parse::<u16>() {
                 if speed <= 1000 {
                     // TODO....
+                    req.into_ok_response()?;
                     return Ok(());
                 }
             }
@@ -98,21 +95,31 @@ fn main() -> Result<()> {
         Err(().into())
     })?;
 
-    server.fn_handler("/example", Method::Put, |mut req| {
-        let len = req.content_len().unwrap_or(0) as usize;
+    // Brightness
+    server.fn_handler("/speed", Method::Put, |mut req| {
+        // TODO 
+        Err(().into())
+    })?;
 
+    // Message
+    server.fn_handler("/message", Method::Put, move |mut req| {
+        let len = req.content_len().unwrap_or(0) as usize;
         let mut buf = vec![0; len];
         req.read_exact(&mut buf)?;
-        let mut resp = req.into_ok_response()?;
-        resp.write_all(temperature(32.0).as_bytes())?;
-        info!("{:?}",  str::from_utf8(&buf)?);
-        Ok(())
+        
+        if let core::result::Result::Ok(as_str) = str::from_utf8(&buf) {
+            // info!("Setting to {:?}", as_str);
+            ticker.lock().unwrap().set_message(as_str)?;
+            req.into_ok_response()?;
+            return Ok(());
+        }
+
+        Err(().into())
     })?;
     
-    ticker.display.set_brightness(80).expect("Failed to set brightness");
     let mut seed = 0;
     loop {        
-        ticker.tick();
+        ticker_main.lock().unwrap().tick();
 
         seed += 1;
 
@@ -124,30 +131,4 @@ fn main() -> Result<()> {
 
         std::thread::sleep(std::time::Duration::from_millis(70));
     }
-}
-
-fn templated(content: impl AsRef<str>) -> String {
-    format!(
-        r#"
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="utf-8">
-        <title>esp-rs web server</title>
-    </head>
-    <body>
-        {}
-    </body>
-</html>
-"#,
-        content.as_ref()
-    )
-}
-
-fn index_html() -> String {
-    templated("Hello from ESP32-C3!")
-}
-
-fn temperature(val: f32) -> String {
-    templated(format!("Chip temperature: {:.2}°C", val))
 }

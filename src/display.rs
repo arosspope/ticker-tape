@@ -91,7 +91,7 @@ pub struct Ticker<'a> {
     shift: isize,
     index: usize,
     len: usize,
-    message: [u8; 100],
+    pub message: [u8; 100],
     pub display: DotDisplay<'a>,
 }
 
