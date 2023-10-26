@@ -1,5 +1,5 @@
 use log::*;
-use anyhow::{Result, Error};
+use anyhow::{Result, Error, bail};
 use esp_idf_hal::gpio::{
     PinDriver,
     Gpio0, Gpio1, Gpio2,
@@ -106,10 +106,15 @@ impl Ticker<'_> {
         }
     }
 
-    pub fn set_message(&mut self, message: &str) {
+    pub fn set_message(&mut self, message: &str) -> Result<(), Error> {
         debug!("Setting ticker-tape message: {:?}", message);
+        if message.len() > self.message.len() {
+            bail!("Message too long");
+        }
+        
         self.len = message.len();
-        self.message[..self.len].copy_from_slice(message.as_bytes().try_into().unwrap());
+        self.message[..self.len].copy_from_slice(message.as_bytes().try_into()?);
+        Ok(())
     }
 
     // TODO: Make array length variable with 'N' parameter

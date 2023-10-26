@@ -9,6 +9,7 @@ use esp_idf_svc::http::server::{Configuration, EspHttpServer};
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use log::*;
 use max7219::*;
+use serde::Serialize;
 
 mod led;
 use led::{RGB8, WS2812RMT};
@@ -18,8 +19,6 @@ use display::{DotDisplay, Ticker};
 
 mod wifi;
 use wifi::Wifi;
-
-use font8x8::{BASIC_FONTS, UnicodeFonts};
 
 #[toml_cfg::toml_config]
 pub struct Config {
@@ -66,20 +65,37 @@ fn main() -> Result<()> {
 
     // Set the HTTP server
     let mut server = EspHttpServer::new(&Configuration::default())?;
+
     // http://<sta ip>/ handler
     server.fn_handler("/", Method::Get, |request| {
-        let html = index_html();
+        #[derive(Serialize)]
+        struct TickerConfig {
+            speed: u16
+        }
+
+        let config = TickerConfig{speed: 0};
+
         let mut response = request.into_ok_response()?;
-        response.write_all(html.as_bytes())?;
+        response.write_all(serde_json::to_string(&config)?.as_bytes())?;
         Ok(())
     })?;
+    
+    // Speed
+    server.fn_handler("/speed", Method::Put, |mut req| {
+        let len = req.content_len().unwrap_or(0) as usize;
+        let mut buf = vec![0; len];
+        req.read_exact(&mut buf)?;
+        
+        if let Ok(as_str) = str::from_utf8(&buf) {
+            if let Ok(speed) = as_str.parse::<u16>() {
+                if speed <= 1000 {
+                    // TODO....
+                    return Ok(());
+                }
+            }
+        }
 
-    // http://<sta ip>/temperature handler
-    server.fn_handler("/temperature", Method::Get, move |request| {
-        let html = temperature(32.0);
-        let mut response = request.into_ok_response()?;
-        response.write_all(html.as_bytes())?;
-        Ok(())
+        Err(().into())
     })?;
 
     server.fn_handler("/example", Method::Put, |mut req| {
