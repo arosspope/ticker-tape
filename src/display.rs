@@ -110,12 +110,18 @@ impl Ticker<'_> {
 
     pub fn set_message(&mut self, message: &str) -> Result<(), Error> {
         debug!("Setting ticker-tape message: {:?}", message);
-        if message.len() > self.message.len() {
+        if message.is_empty() {
+            bail!("Empty message");
+        }
+
+        if message.len() + 1 > self.message.len() {
             bail!("Message too long");
         }
 
         self.len = message.len();
         self.message[..self.len].copy_from_slice(message.as_bytes().try_into()?);
+        self.message[self.len] = ' ' as u8;
+        self.len += 1;
         Ok(())
     }
 
