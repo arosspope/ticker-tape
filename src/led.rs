@@ -2,7 +2,8 @@ use anyhow::Result; // TODO: why use anyhow?
 use core::time::Duration;
 use esp_idf_hal::{
     gpio::OutputPin,
-    rmt::{config::TransmitConfig, FixedLengthSignal, PinState, Pulse, TxRmtDriver, RmtChannel}, peripheral::Peripheral,
+    peripheral::Peripheral,
+    rmt::{config::TransmitConfig, FixedLengthSignal, PinState, Pulse, RmtChannel, TxRmtDriver},
 };
 
 pub use rgb::RGB8; // TODO: Find a better way to expose this
@@ -15,8 +16,8 @@ impl<'d> WS2812RMT<'d> {
     // Rust ESP Board gpio2,  ESP32-C3-DevKitC-02 gpio8  TODO: This is the wrong LED / KIT reference code!!!
     pub fn new(
         led: impl Peripheral<P = impl OutputPin> + 'd,
-       channel: impl Peripheral<P = impl RmtChannel> + 'd,
-    )-> Result<Self> {
+        channel: impl Peripheral<P = impl RmtChannel> + 'd,
+    ) -> Result<Self> {
         let config = TransmitConfig::new().clock_divider(2);
         let tx = TxRmtDriver::new(channel, led, &config)?;
         Ok(Self { tx_rtm_driver: tx })
