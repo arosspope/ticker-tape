@@ -42,8 +42,6 @@ fn main() -> anyhow::Result<()> {
     let app_config = CONFIG;
     let mut led = WS2812RMT::new(peripherals.pins.gpio18, peripherals.rmt.channel0)?;
 
-    led.set_pixel(RGB8::new(50, 50, 0))?; // TODO...
-
     // Associate to network and obtain DHCP IP
     info!(
         "Loading with credentials, ssid:{:?} psk:{:?}",
@@ -60,119 +58,97 @@ fn main() -> anyhow::Result<()> {
     let data = PinDriver::output(peripherals.pins.gpio0).unwrap();
     let cs = PinDriver::output(peripherals.pins.gpio1).unwrap();
     let sck = PinDriver::output(peripherals.pins.gpio2).unwrap();
-    let ticker_main = Arc::new(Mutex::new(Ticker::new(
+    let ticker = Arc::new(Mutex::new(Ticker::new(
         DotDisplay::from(MAX7219::from_pins(1, data, cs, sck).unwrap()).unwrap(),
     )));
-    let ticker_message_handler = ticker_main.clone();
-    let ticker_brightness_handler = ticker_main.clone();
-    ticker_main.lock().unwrap().set_message("Hello world")?;
-    ticker_main
-        .lock()
-        .unwrap()
-        .display
-        .set_brightness(80)
-        .expect("Failed to set brightness");
 
-    let tick_speed_ms = Arc::new(Mutex::new(70 as u64));
-    let tick_speed_handler = tick_speed_ms.clone();
-
-    // Set the HTTP server
+    // Set up the HttpServer
     let mut server = EspHttpServer::new(&Configuration::default())?;
-    server.fn_handler("/", Method::Get, |request| {
+
+    let t_get_handler = ticker.clone();
+    server.fn_handler("/", Method::Get, move |req| {
+        let t = t_get_handler.lock()?;
+
         #[derive(Serialize)]
         struct TickerConfig {
             message: String,
-            speed: u16,
+            speed: u32,
             brightness: u8,
         }
 
         let config = TickerConfig {
-            speed: 0,
-            message: String::default(),
-            brightness: 0,
+            speed: t.speed_ms as u32,
+            message: t.message.iter().map(|&c| c as char).take(t.len).collect(),
+            brightness: t.display.brightness,
         };
-        let mut response = request.into_ok_response()?;
+
+        let mut response = req.into_ok_response()?;
         response.write_all(serde_json::to_string(&config)?.as_bytes())?;
         Ok(())
     })?;
 
-    // Speed
+    let t_speed_handler = ticker.clone();
     server.fn_handler("/speed", Method::Put, move |mut req| {
         let len = req.content_len().unwrap_or(0) as usize;
         let mut buf = vec![0; len];
         req.read_exact(&mut buf)?;
 
-        if let Ok(as_str) = str::from_utf8(&buf) {
-            if let Ok(speed) = as_str.parse::<u64>() {
-                if speed <= 1000 {
-                    info!("Set scroll speed to {:?}ms", speed);
-                    *tick_speed_handler.lock().unwrap() = speed;
-                    req.into_ok_response()?;
-                    return Ok(());
-                }
-            }
-        }
+        let speed = str::from_utf8(&buf)?.parse::<usize>()?;
+        t_speed_handler.lock()?.speed_ms = speed;
 
-        Err(().into())
+        info!("Set scroll speed to {:?}ms", speed);
+        req.into_ok_response()?;
+        Ok(())
     })?;
 
-    // Brightness
+    let t_brighness_handler = ticker.clone();
     server.fn_handler("/brightness", Method::Put, move |mut req| {
         let len = req.content_len().unwrap_or(0) as usize;
         let mut buf = vec![0; len];
         req.read_exact(&mut buf)?;
 
-        if let Ok(as_str) = str::from_utf8(&buf) {
-            if let Ok(brightness) = as_str.parse::<u8>() {
-                match ticker_brightness_handler
-                    .lock()
-                    .unwrap()
-                    .display
-                    .set_brightness(brightness)
-                {
-                    Ok(_) => {
-                        info!("Set brightness to {:?}%", brightness);
-                        req.into_ok_response()?;
-                        return Ok(());
-                    }
-                    _ => (), // Fall through
-                }
-            }
-        }
-
-        Err(().into())
+        t_brighness_handler
+            .lock()?
+            .display
+            .set_brightness(str::from_utf8(&buf)?.parse::<u8>()?)?;
+        req.into_ok_response()?;
+        Ok(())
     })?;
 
-    // Message
+    let t_message_handler = ticker.clone();
     server.fn_handler("/message", Method::Put, move |mut req| {
         let len = req.content_len().unwrap_or(0) as usize;
         let mut buf = vec![0; len];
         req.read_exact(&mut buf)?;
 
-        if let core::result::Result::Ok(as_str) = str::from_utf8(&buf) {
-            ticker_message_handler.lock().unwrap().set_message(as_str)?;
-            debug!("Setting ticker message to: {:?}", as_str);
-            req.into_ok_response()?;
-            return Ok(());
-        }
-
-        Err(().into())
+        t_message_handler
+            .lock()?
+            .set_message(str::from_utf8(&buf)?)?;
+        req.into_ok_response()?;
+        Ok(())
     })?;
 
-    let mut seed = 0;
+    if let Ok(mut t) = ticker.lock() {
+        let ip = wifi.driver.wifi().sta_netif().get_ip_info()?.ip;
+        t.set_message(&format!("{:?}", ip))?;
+        t.display
+            .set_brightness(80)
+            .expect("Failed to set brightness");
+    }
+
     loop {
-        ticker_main.lock().unwrap().tick();
+        let connected = wifi.driver.is_connected().unwrap_or(false);
 
-        seed += 1;
-
-        if (seed % 2) == 0 {
-            led.set_pixel(RGB8::new(0, 0, 50))?; // Blue
+        if connected {
+            led.set_pixel(RGB8::new(0, 100, 0))?;
         } else {
-            led.set_pixel(RGB8::new(0, 50, 0))?; // Green
+            led.set_pixel(RGB8::new(100, 0, 0))?;
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(
-            *tick_speed_ms.lock().unwrap(),
-        ));
+        if let Ok(mut t) = ticker.lock() {
+            t.tick();
+
+            std::thread::sleep(std::time::Duration::from_millis(t.speed_ms as u64));
+        }
     }
 }

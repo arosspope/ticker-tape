@@ -92,9 +92,10 @@ impl DotDisplay<'_> {
 pub struct Ticker<'a> {
     shift: isize,
     index: usize,
-    len: usize,
     pub message: [u8; 100],
     pub display: DotDisplay<'a>,
+    pub len: usize,
+    pub speed_ms: usize,
 }
 
 impl Ticker<'_> {
@@ -103,6 +104,7 @@ impl Ticker<'_> {
             shift: 0,
             index: 0,
             len: 0,
+            speed_ms: 70,
             message: [0; 100],
             display: display,
         }

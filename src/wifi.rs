@@ -35,7 +35,7 @@ impl Wifi {
             }))
             .expect("Failed to set wifi driver configuration");
 
-        Wifi { driver: driver }
+        Wifi { driver }
     }
 
     pub fn start(&mut self) -> Result<(), Error> {
