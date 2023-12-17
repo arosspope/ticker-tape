@@ -49,8 +49,8 @@ fn main() -> anyhow::Result<()> {
     );
     let mut wifi = Wifi::init(
         peripherals.modem,
-        &app_config.wifi_ssid,
-        &app_config.wifi_psk,
+        app_config.wifi_ssid,
+        app_config.wifi_psk,
     );
     Wifi::start(&mut wifi)?;
 

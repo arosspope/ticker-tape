@@ -35,7 +35,7 @@ impl DotDisplay<'_> {
             self.turn_on_display()?;
         }
 
-        self.display.write_raw(0, &input)?;
+        self.display.write_raw(0, input)?;
 
         Ok(())
     }
@@ -99,14 +99,14 @@ pub struct Ticker<'a> {
 }
 
 impl Ticker<'_> {
-    pub fn new<'a>(display: DotDisplay<'a>) -> Ticker<'a> {
+    pub fn new(display: DotDisplay<'_>) -> Ticker<'_> {
         Ticker {
             shift: 0,
             index: 0,
             len: 0,
             speed_ms: 70,
             message: [0; 100],
-            display: display,
+            display,
         }
     }
 
@@ -121,8 +121,8 @@ impl Ticker<'_> {
         }
 
         self.len = message.len();
-        self.message[..self.len].copy_from_slice(message.as_bytes().try_into()?);
-        self.message[self.len] = ' ' as u8;
+        self.message[..self.len].copy_from_slice(message.as_bytes());
+        self.message[self.len] = b' ';
         self.len += 1;
         Ok(())
     }
