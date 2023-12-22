@@ -92,10 +92,10 @@ impl DotDisplay<'_> {
 pub struct Ticker<'a> {
     shift: isize,
     index: usize,
+    pub speed_ms: usize,
+    pub message_len: usize,
     pub message: [u8; 100],
     pub display: DotDisplay<'a>,
-    pub len: usize,
-    pub speed_ms: usize,
 }
 
 impl Ticker<'_> {
@@ -103,8 +103,8 @@ impl Ticker<'_> {
         Ticker {
             shift: 0,
             index: 0,
-            len: 0,
             speed_ms: 70,
+            message_len: 0,
             message: [0; 100],
             display,
         }
@@ -120,10 +120,10 @@ impl Ticker<'_> {
             bail!("Message too long");
         }
 
-        self.len = message.len();
-        self.message[..self.len].copy_from_slice(message.as_bytes());
-        self.message[self.len] = b' ';
-        self.len += 1;
+        self.message_len = message.len();
+        self.message[..self.message_len].copy_from_slice(message.as_bytes());
+        self.message[self.message_len] = b' ';
+        self.message_len += 1;
         Ok(())
     }
 
@@ -151,7 +151,7 @@ impl Ticker<'_> {
     pub fn tick(&mut self) {
         if self.shift >= 8 {
             self.shift = 0;
-            self.index = (self.index + 1) % self.len;
+            self.index = (self.index + 1) % self.message_len;
         }
 
         let previous = if self.index > 0 {

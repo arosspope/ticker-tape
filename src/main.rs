@@ -78,7 +78,7 @@ fn main() -> anyhow::Result<()> {
 
         let config = TickerConfig {
             speed: t.speed_ms as u32,
-            message: t.message.iter().map(|&c| c as char).take(t.len).collect(),
+            message: t.message.iter().map(|&c| c as char).take(t.message_len).collect(),
             brightness: t.display.brightness,
         };
 
