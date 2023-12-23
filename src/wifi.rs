@@ -39,12 +39,24 @@ impl Wifi {
     }
 
     pub fn start(&mut self) -> Result<(), Error> {
+        debug!("Starting wifi driver");
         self.driver.start()?;
+
+        Ok(())
+    }
+
+    pub fn connect(&mut self) -> Result<(), Error> {
         self.driver.connect()?;
         self.driver.wait_netif_up()?;
 
-        let ip = self.driver.wifi().sta_netif().get_ip_info()?;
-        info!("IP info: {:?}", ip);
+        debug!(
+            "ip info: {:?}",
+            self.driver.wifi().sta_netif().get_ip_info()?
+        );
+        debug!(
+            "hostname: {:?}",
+            self.driver.wifi().sta_netif().get_hostname()?
+        );
 
         Ok(())
     }

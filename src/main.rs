@@ -47,12 +47,7 @@ fn main() -> anyhow::Result<()> {
         "Loading with credentials, ssid:{:?} psk:{:?}",
         app_config.wifi_ssid, app_config.wifi_psk
     );
-    let mut wifi = Wifi::init(
-        peripherals.modem,
-        app_config.wifi_ssid,
-        app_config.wifi_psk,
-    );
-    Wifi::start(&mut wifi)?;
+    let mut wifi = Wifi::init(peripherals.modem, app_config.wifi_ssid, app_config.wifi_psk);
 
     // Setup for the Ticker display
     let data = PinDriver::output(peripherals.pins.gpio0).unwrap();
@@ -78,7 +73,12 @@ fn main() -> anyhow::Result<()> {
 
         let config = TickerConfig {
             speed: t.speed_ms as u32,
-            message: t.message.iter().map(|&c| c as char).take(t.message_len).collect(),
+            message: t
+                .message
+                .iter()
+                .map(|&c| c as char)
+                .take(t.message_len)
+                .collect(),
             brightness: t.display.brightness,
         };
 
@@ -128,21 +128,40 @@ fn main() -> anyhow::Result<()> {
         Ok(())
     })?;
 
+    // Start wifi driver and loop here until STA iface is up and connected
+    led.set_pixel(RGB8::new(100, 0, 0))?;
+    wifi.start()?;
+    loop {
+        if wifi.connect().is_ok() {
+            break;
+        }
+    }
+
+    // Now connected
+    led.set_pixel(RGB8::new(0, 100, 0))?;
     if let Ok(mut t) = ticker.lock() {
-        let ip = wifi.driver.wifi().sta_netif().get_ip_info()?.ip;
-        t.set_message(&format!("{:?}", ip))?;
         t.display
             .set_brightness(80)
             .expect("Failed to set brightness");
+        t.set_message(&format!(
+            "{:?}",
+            wifi.driver.wifi().sta_netif().get_ip_info()?.ip
+        ))?;
     }
 
     loop {
-        let connected = wifi.driver.is_connected().unwrap_or(false);
-
-        if connected {
+        if wifi.driver.is_connected().unwrap_or(false) {
+            // Connected... nothing to do
             led.set_pixel(RGB8::new(0, 100, 0))?;
         } else {
+            // Connection lost... block until it's re-established
             led.set_pixel(RGB8::new(100, 0, 0))?;
+            if wifi.connect().is_ok() {
+                info!(
+                    "Reestablished connection: {:?}",
+                    wifi.driver.wifi().sta_netif().get_ip_info()?.ip
+                );
+            }
         }
 
         if let Ok(mut t) = ticker.lock() {
