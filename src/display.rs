@@ -13,11 +13,11 @@ pub type DisplayPins<'a> = PinConnector<
 pub struct DotDisplay<'a> {
     display: MAX7219<DisplayPins<'a>>,
     display_is_on: bool,
-    brightness: u8,
+    brightness: usize,
 }
 
 impl DotDisplay<'_> {
-    pub fn from(display: MAX7219<DisplayPins>) -> Result<DotDisplay<'_>, DataError> {
+    pub fn from(display: MAX7219<DisplayPins>) -> Result<DotDisplay<'_>, Error> {
         let mut controller = DotDisplay {
             display,
             display_is_on: true,
@@ -27,41 +27,49 @@ impl DotDisplay<'_> {
         // Start the DotDisplay in a known state
         controller.reset_display()?;
         controller.turn_off_display()?;
+
         Ok(controller)
     }
 
-    pub fn write_display(&mut self, input: &[u8; 8]) -> Result<(), DataError> {
+    pub fn write_display(&mut self, input: &[u8; 8]) -> Result<(), Error> {
         if !self.display_is_on {
             self.turn_on_display()?;
         }
 
-        self.display.write_raw(0, input)?;
+        if let Err(_) = self.display.write_raw(0, input) {
+            error!("Failed to write to display");
+        }
 
         Ok(())
     }
 
-    pub fn turn_off_display(&mut self) -> Result<(), DataError> {
+    pub fn turn_off_display(&mut self) -> Result<(), Error> {
         if !self.display_is_on {
-            return Err(DataError::Pin);
+            error!("Display already off");
         }
 
-        self.display.power_off()?;
+        if let Err(_) = self.display.power_off() {
+            error!("Failed to power off display");
+        }
+
         self.display_is_on = false;
         Ok(())
     }
 
-    pub fn turn_on_display(&mut self) -> Result<(), DataError> {
+    pub fn turn_on_display(&mut self) -> Result<(), Error> {
         if self.display_is_on {
-            return Err(DataError::Pin);
+            error!("Display already on");
         }
 
-        self.display.power_on()?;
+        if let Err(_) = self.display.power_on() {
+            error!("Failed to power on display");
+        }
         self.display_is_on = true;
         Ok(())
     }
 
     #[allow(dead_code)]
-    pub fn toggle_display(&mut self) -> Result<(), DataError> {
+    pub fn toggle_display(&mut self) -> Result<(), Error> {
         if self.display_is_on {
             self.turn_off_display()?;
         } else {
@@ -71,21 +79,28 @@ impl DotDisplay<'_> {
         Ok(())
     }
 
-    pub fn reset_display(&mut self) -> Result<(), DataError> {
-        self.display.clear_display(0)?;
+    pub fn reset_display(&mut self) -> Result<(), Error> {
+        if let Err(_) = self.display.clear_display(0) {
+            error!("Failed to clear display");
+        }
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub fn set_brightness(&mut self, brightness: u8) -> Result<(), DataError> {
+    pub fn set_brightness(&mut self, brightness: u8) -> Result<(), Error> {
         if brightness > 100 {
-            return Err(DataError::Pin);
+            error!("Brightness greater than 100%");
         }
 
-        let brightness = (brightness as f32 * 2.55) as u8;
-        self.display.set_intensity(0, brightness)?;
-        self.brightness = brightness;
+        let brightness = brightness as f32 * 2.55;
+        if let Err(_) = self.display.set_intensity(0, brightness as u8) {
+            error!("Failed to set intensity of display")
+        }
+        self.brightness = brightness as usize;
         Ok(())
+    }
+
+    pub fn brightness(&self) -> usize {
+        self.brightness
     }
 }
 
@@ -127,7 +142,6 @@ impl Ticker<'_> {
         Ok(())
     }
 
-    // TODO: Make array length variable with 'N' parameter
     fn glyph(c: char, shift: isize) -> [u8; 8] {
         let unknown = BASIC_FONTS.get('?').unwrap();
         let mut glyph = BASIC_FONTS.get(c).unwrap_or(unknown);

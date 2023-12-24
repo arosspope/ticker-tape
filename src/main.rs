@@ -50,11 +50,11 @@ fn main() -> anyhow::Result<()> {
     let mut wifi = Wifi::init(peripherals.modem, app_config.wifi_ssid, app_config.wifi_psk);
 
     // Setup for the Ticker display
-    let data = PinDriver::output(peripherals.pins.gpio0).unwrap();
-    let cs = PinDriver::output(peripherals.pins.gpio1).unwrap();
-    let sck = PinDriver::output(peripherals.pins.gpio2).unwrap();
+    let data = PinDriver::output(peripherals.pins.gpio0)?;
+    let cs = PinDriver::output(peripherals.pins.gpio1)?;
+    let sck = PinDriver::output(peripherals.pins.gpio2)?;
     let ticker = Arc::new(Mutex::new(Ticker::new(
-        DotDisplay::from(MAX7219::from_pins(1, data, cs, sck).unwrap()).unwrap(),
+        DotDisplay::from(MAX7219::from_pins(1, data, cs, sck).unwrap())?,
     )));
 
     // Set up the HttpServer
@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
                 .map(|&c| c as char)
                 .take(t.message_len)
                 .collect(),
-            brightness: t.display.brightness,
+            brightness: t.display.brightness() as u8,
         };
 
         let mut response = req.into_ok_response()?;
@@ -141,8 +141,7 @@ fn main() -> anyhow::Result<()> {
     led.set_pixel(RGB8::new(0, 100, 0))?;
     if let Ok(mut t) = ticker.lock() {
         t.display
-            .set_brightness(80)
-            .expect("Failed to set brightness");
+            .set_brightness(80)?;
         t.set_message(&format!(
             "{:?}",
             wifi.driver.wifi().sta_netif().get_ip_info()?.ip
