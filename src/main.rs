@@ -149,8 +149,8 @@ fn main() -> anyhow::Result<()> {
         wifi.poll()?;
 
         if let Ok(mut t) = ticker.lock() {
+            // Advance the scrolling display
             t.tick();
-
             std::thread::sleep(std::time::Duration::from_millis(t.speed_ms as u64));
         }
     }
