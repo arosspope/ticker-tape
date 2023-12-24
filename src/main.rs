@@ -11,6 +11,7 @@ use serde::Serialize;
 use std::{
     str,
     sync::{Arc, Mutex},
+    time::Instant,
 };
 
 mod led;
@@ -132,12 +133,13 @@ fn main() -> anyhow::Result<()> {
     led.set_pixel(RGB8::new(100, 0, 0))?;
     wifi.start()?;
     loop {
-        if wifi.connect().is_ok() {
+        if wifi.connect_and_wait().is_ok() {
             break;
         }
     }
 
     // Now connected
+    let mut was_connected = true;
     led.set_pixel(RGB8::new(0, 100, 0))?;
     if let Ok(mut t) = ticker.lock() {
         t.display.set_brightness(80)?;
@@ -147,19 +149,29 @@ fn main() -> anyhow::Result<()> {
         ))?;
     }
 
+    let mut connection_lost_at = None;
     loop {
-        if wifi.driver.is_connected().unwrap_or(false) {
-            // Connected... nothing to do
-            led.set_pixel(RGB8::new(0, 100, 0))?;
-        } else {
-            // Connection lost... block until it's re-established
-            led.set_pixel(RGB8::new(100, 0, 0))?;
-            if wifi.connect().is_ok() {
+        if wifi.is_up() {
+            if !was_connected {
+                // Connected again
+                led.set_pixel(RGB8::new(0, 100, 0))?;
+                was_connected = true;
+                connection_lost_at = None;
                 info!(
                     "Reestablished connection: {:?}",
                     wifi.driver.wifi().sta_netif().get_ip_info()?.ip
                 );
             }
+        } else if was_connected
+            || connection_lost_at
+                .is_some_and(|c| Instant::now().duration_since(c).as_secs() > 30)
+        {
+            // Lost connection, or too much time has passed since last attempt at 'connect'
+            connection_lost_at = Some(Instant::now());
+            was_connected = false;
+            wifi.driver.wifi_mut().connect()?;
+            led.set_pixel(RGB8::new(100, 0, 0))?;
+            info!("Connection lost... scanning");
         }
 
         if let Ok(mut t) = ticker.lock() {

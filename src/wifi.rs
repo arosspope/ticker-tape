@@ -42,7 +42,7 @@ impl Wifi {
         Ok(())
     }
 
-    pub fn connect(&mut self) -> Result<(), Error> {
+    pub fn connect_and_wait(&mut self) -> Result<(), Error> {
         self.driver.connect()?;
         self.driver.wait_netif_up()?;
 
@@ -56,5 +56,9 @@ impl Wifi {
         );
 
         Ok(())
+    }
+
+    pub fn is_up(&self) -> bool {
+        self.driver.is_connected().unwrap_or(false) && self.driver.is_up().unwrap_or(false)
     }
 }
