@@ -37,7 +37,7 @@ impl DotDisplay<'_> {
         }
 
         if self.display.write_raw(0, input).is_err() {
-            error!("Failed to write to display");
+            bail!("Failed to write to display");
         }
 
         Ok(())
@@ -45,11 +45,11 @@ impl DotDisplay<'_> {
 
     pub fn turn_off_display(&mut self) -> Result<(), Error> {
         if !self.display_is_on {
-            error!("Display already off");
+            bail!("Display already off");
         }
 
         if self.display.power_off().is_err() {
-            error!("Failed to power off display");
+            bail!("Failed to power off display");
         }
 
         self.display_is_on = false;
@@ -58,11 +58,11 @@ impl DotDisplay<'_> {
 
     pub fn turn_on_display(&mut self) -> Result<(), Error> {
         if self.display_is_on {
-            error!("Display already on");
+            bail!("Display already on");
         }
 
         if self.display.power_on().is_err() {
-            error!("Failed to power on display");
+            bail!("Failed to power on display");
         }
         self.display_is_on = true;
         Ok(())
@@ -81,19 +81,19 @@ impl DotDisplay<'_> {
 
     pub fn reset_display(&mut self) -> Result<(), Error> {
         if self.display.clear_display(0).is_err() {
-            error!("Failed to clear display");
+            bail!("Failed to clear display");
         }
         Ok(())
     }
 
     pub fn set_brightness(&mut self, brightness: u8) -> Result<(), Error> {
         if brightness > 100 {
-            error!("Brightness greater than 100%");
+            bail!("Brightness greater than 100%");
         }
 
         let brightness = brightness as f32 * 2.55;
         if self.display.set_intensity(0, brightness as u8).is_err() {
-            error!("Failed to set intensity of display")
+            bail!("Failed to set intensity of display")
         }
         self.brightness = brightness as usize;
         Ok(())
@@ -126,7 +126,6 @@ impl Ticker<'_> {
     }
 
     pub fn set_message(&mut self, message: &str) -> Result<(), Error> {
-        debug!("Setting ticker-tape message: {:?}", message);
         if message.is_empty() {
             bail!("Empty message");
         }
@@ -139,6 +138,7 @@ impl Ticker<'_> {
         self.message[..self.message_len].copy_from_slice(message.as_bytes());
         self.message[self.message_len] = b' ';
         self.message_len += 1;
+        info!("Set ticker-tape message: {:?}", message);
         Ok(())
     }
 
