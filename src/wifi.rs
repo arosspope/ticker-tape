@@ -13,17 +13,15 @@ pub struct Wifi {
 }
 
 impl Wifi {
-    pub fn init(modem: Modem, ssid: &'static str, psk: &'static str) -> Self {
-        let sysloop = EspSystemEventLoop::take().expect("Failed to take system event loop");
+    pub fn init(modem: Modem, ssid: &'static str, psk: &'static str) -> Result<Self, Error> {
+        let sysloop = EspSystemEventLoop::take()?;
         let esp_wifi = EspWifi::new(
             modem,
             sysloop.clone(),
-            Some(EspDefaultNvsPartition::take().expect("Failed to take default nvs partition")), // ? Necessary?
-        )
-        .expect("Failed to create esp wifi device");
+            Some(EspDefaultNvsPartition::take()?),
+        )?;
 
-        let mut driver = BlockingWifi::wrap(esp_wifi, sysloop.clone())
-            .expect("Failed to intialise BlockingWifi object");
+        let mut driver = BlockingWifi::wrap(esp_wifi, sysloop.clone())?;
 
         driver
             .wifi_mut()
@@ -32,10 +30,9 @@ impl Wifi {
                 password: psk.into(),
                 auth_method: AuthMethod::WPA2Personal,
                 ..Default::default()
-            }))
-            .expect("Failed to set wifi driver configuration");
+            }))?;
 
-        Wifi { driver }
+        Ok(Wifi { driver })
     }
 
     pub fn start(&mut self) -> Result<(), Error> {

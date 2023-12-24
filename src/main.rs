@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
         "Loading with credentials, ssid:{:?} psk:{:?}",
         app_config.wifi_ssid, app_config.wifi_psk
     );
-    let mut wifi = Wifi::init(peripherals.modem, app_config.wifi_ssid, app_config.wifi_psk);
+    let mut wifi = Wifi::init(peripherals.modem, app_config.wifi_ssid, app_config.wifi_psk)?;
 
     // Setup for the Ticker display
     let data = PinDriver::output(peripherals.pins.gpio0)?;
