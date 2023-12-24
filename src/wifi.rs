@@ -7,13 +7,24 @@ use esp_idf_svc::{
     wifi::{BlockingWifi, EspWifi},
 };
 use log::*;
+use std::time::Instant;
 
-pub struct Wifi {
+use crate::led::{RGB8, WS2812RMT};
+
+pub struct Wifi<'a> {
+    led: WS2812RMT<'a>,
+    connected: bool,
+    lost_connection_at: Option<Instant>,
     pub driver: BlockingWifi<EspWifi<'static>>,
 }
 
-impl Wifi {
-    pub fn init(modem: Modem, ssid: &'static str, psk: &'static str) -> Result<Self, Error> {
+impl Wifi<'_> {
+    pub fn init<'a>(
+        modem: Modem,
+        ssid: &'static str,
+        psk: &'static str,
+        led: WS2812RMT<'a>,
+    ) -> Result<Wifi<'a>, Error> {
         let sysloop = EspSystemEventLoop::take()?;
         let esp_wifi = EspWifi::new(
             modem,
@@ -32,7 +43,15 @@ impl Wifi {
                 ..Default::default()
             }))?;
 
-        Ok(Wifi { driver })
+        let mut wifi = Wifi {
+            led,
+            connected: false,
+            lost_connection_at: None,
+            driver,
+        };
+        wifi.set_connection(false)?;
+
+        Ok(wifi)
     }
 
     pub fn start(&mut self) -> Result<(), Error> {
@@ -42,9 +61,32 @@ impl Wifi {
         Ok(())
     }
 
-    pub fn connect_and_wait(&mut self) -> Result<(), Error> {
-        self.driver.connect()?;
-        self.driver.wait_netif_up()?;
+    fn set_connection(&mut self, is_connected: bool) -> Result<(), Error> {
+        self.connected = is_connected;
+
+        if self.connected {
+            self.lost_connection_at = None;
+            self.led.set_pixel(RGB8::new(0, 100, 0))?;
+        } else {
+            self.lost_connection_at = Some(Instant::now());
+            self.led.set_pixel(RGB8::new(100, 0, 0))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn wait_for_connection(&mut self) -> Result<(), Error> {
+        if self.is_up() {
+            return Ok(());
+        }
+
+        loop {
+            info!("Scanning for AP");
+            self.driver.connect()?;
+            if self.driver.wait_netif_up().is_ok() {
+                break;
+            }
+        }
 
         debug!(
             "ip info: {:?}",
@@ -54,6 +96,30 @@ impl Wifi {
             "hostname: {:?}",
             self.driver.wifi().sta_netif().get_hostname()?
         );
+
+        self.set_connection(true)?;
+        Ok(())
+    }
+
+    pub fn poll(&mut self) -> Result<(), Error> {
+        if self.is_up() {
+            if !self.connected {
+                self.set_connection(true)?;
+                info!(
+                    "Reestablished connection: {:?}",
+                    self.driver.wifi().sta_netif().get_ip_info()?.ip
+                );
+            }
+        } else if self.connected
+            || self
+                .lost_connection_at
+                .is_some_and(|c| Instant::now().duration_since(c).as_secs() > 30)
+        {
+            // Lost connection, or too much time has passed since last attempt at 'connect'
+            self.set_connection(false)?;
+            self.driver.wifi_mut().connect()?;
+            info!("Connection lost... scanning");
+        }
 
         Ok(())
     }
