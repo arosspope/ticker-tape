@@ -36,7 +36,7 @@ impl DotDisplay<'_> {
             self.turn_on_display()?;
         }
 
-        if let Err(_) = self.display.write_raw(0, input) {
+        if self.display.write_raw(0, input).is_err() {
             error!("Failed to write to display");
         }
 
@@ -48,7 +48,7 @@ impl DotDisplay<'_> {
             error!("Display already off");
         }
 
-        if let Err(_) = self.display.power_off() {
+        if self.display.power_off().is_err() {
             error!("Failed to power off display");
         }
 
@@ -61,7 +61,7 @@ impl DotDisplay<'_> {
             error!("Display already on");
         }
 
-        if let Err(_) = self.display.power_on() {
+        if self.display.power_on().is_err() {
             error!("Failed to power on display");
         }
         self.display_is_on = true;
@@ -80,7 +80,7 @@ impl DotDisplay<'_> {
     }
 
     pub fn reset_display(&mut self) -> Result<(), Error> {
-        if let Err(_) = self.display.clear_display(0) {
+        if self.display.clear_display(0).is_err() {
             error!("Failed to clear display");
         }
         Ok(())
@@ -92,7 +92,7 @@ impl DotDisplay<'_> {
         }
 
         let brightness = brightness as f32 * 2.55;
-        if let Err(_) = self.display.set_intensity(0, brightness as u8) {
+        if self.display.set_intensity(0, brightness as u8).is_err() {
             error!("Failed to set intensity of display")
         }
         self.brightness = brightness as usize;
