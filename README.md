@@ -1,8 +1,8 @@
 
 # `ticker-tape`🧾
 
-<p align="left">
-  <img src="https://i.imgur.com/SbshYJd.gif" height="200" />
+<p align="center">
+  <img src="https://i.imgur.com/sOYVSqa.gif" height="200" />
   <img src="https://i.imgur.com/KkfQT6n.jpg" height="200" />
 </p>
 
