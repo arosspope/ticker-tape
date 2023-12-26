@@ -9,15 +9,9 @@
 This project leverages embedded `rust` support (`std` library) for the `ESP32-S2` microcontroller and `MAX7219` LED dot display to create a Wi-Fi enabled ticker-tape. Upon boot, the device will: 
 1. Connect to a local Wi-Fi network (credentials supplied by the user).
 2. Advertise the IP address leased by the DHCP server on the ticker display.
-2. Start a http server, addressable by the aforementioned IP.
+2. Start a http server at the aforementioned IP.
 
-This enables interaction with the `ticker-tape` using simple http `GET/PUT` commands over Wi-Fi.
-
-<p align="left">
-  <img src="https://i.imgur.com/V4uO5r2.gif" height="200" />
-</p>
-
-> Using `curl` to set the ticker message and then retrieve device information. The IP address of the device in this example is `192.168.1.110`.
+Interaction with the `ticker-tape` display over Wi-Fi is possible with simple http `GET/PUT` commands.
 
 ## Features
 
@@ -28,7 +22,7 @@ This project **features**:
 * Driving the `MAX7219` display, converting raw text to displayable patterns on the 8x8 LED grid.
 
 ## Environment setup
-### Esspresif toolchain
+### Espressif toolchain
 
 To be able to build and deploy this project to your local ESP device, espressif requires the following tools/packages to be available in your local development environment.
 
