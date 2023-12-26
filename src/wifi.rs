@@ -82,7 +82,9 @@ impl Wifi<'_> {
 
         loop {
             info!("Scanning for AP");
-            self.driver.connect()?;
+            if self.driver.connect().is_err() {
+                continue;
+            }
             if self.driver.wait_netif_up().is_ok() {
                 break;
             }
