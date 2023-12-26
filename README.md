@@ -1,10 +1,12 @@
 
 # Foo
 
-<p align="centre">
-  <img src="https://i.imgur.com/V4uO5r2.gif" height="300" />
-  <img src="https://i.imgur.com/YFpuC69.gif" height="300" />
-  <img src="https://i.imgur.com/KkfQT6n.jpg" height="300" />
+<p align="center">
+  <img src="https://i.imgur.com/guq8wpp.gif" height="200" />
+  <img src="https://i.imgur.com/KkfQT6n.jpg" height="200" />
+</p>
+<p align="center">
+  <img src="https://i.imgur.com/V4uO5r2.gif" height="200" />
 </p>
 
 ## Setup
