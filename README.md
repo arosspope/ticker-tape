@@ -11,7 +11,7 @@ This project leverages embedded `rust` support (`std` library) for the `ESP32-S2
 2. Advertise the IP address leased by the DHCP server on the ticker display.
 2. Start a http server at the aforementioned IP.
 
-Interaction with the `ticker-tape` display over Wi-Fi is possible with simple http `GET/PUT` commands.
+Interaction with the `ticker-tape` display over Wi-Fi is possible with http `GET/PUT` commands.
 
 ## Features
 
